@@ -414,7 +414,7 @@ canvas {{
 
   <!-- Header -->
   <div class="header">
-    <h1>🌙 ইয়াস ভাইয়ের সালামি হুইল 🎉</h1>
+      <h1>🌙 ইয়াস ভাইয়ের সালামি হুইল 🎉</h1>
     <p>Pick your Eid Salami!! 🤩 &nbsp;—&nbsp; Each person spins once!</p>
   </div>
 
@@ -610,56 +610,64 @@ function shakeInput() {{
    SOUND
 ═══════════════════════════════════════════════════════ */
 let audioCtx = null;
-let tickInterval = null;
+let tickTimeout = null;
 
 function getAudioCtx() {{
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!audioCtx) {{
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }}
+    // Always resume — iframe blocks autoplay until user gesture
+    if (audioCtx.state === 'suspended') {{
+        audioCtx.resume();
+    }}
     return audioCtx;
 }}
 
-// Ticking sound during spin — short click noise
+// Single tick click — works in iframe after user gesture (button click)
 function playTick(volume) {{
     try {{
         const ctx = getAudioCtx();
-        const buf = ctx.createBuffer(1, ctx.sampleRate * 0.03, ctx.sampleRate);
+        if (ctx.state !== 'running') return;
+        const buf  = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.025), ctx.sampleRate);
         const data = buf.getChannelData(0);
         for (let i = 0; i < data.length; i++) {{
-            data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 6);
+            // Sharp white-noise burst that decays fast = tick sound
+            data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 8);
         }}
-        const src = ctx.createBufferSource();
-        src.buffer = buf;
+        const src  = ctx.createBufferSource();
         const gain = ctx.createGain();
-        gain.gain.value = Math.min(volume, 1.0);
-        src.connect(gain); gain.connect(ctx.destination);
+        gain.gain.value = Math.min(Math.max(volume, 0), 1);
+        src.buffer = buf;
+        src.connect(gain);
+        gain.connect(ctx.destination);
         src.start();
     }} catch(e) {{}}
 }}
 
+// Schedule ticks that mirror wheel speed (fast→slow)
 function startTickSound(duration) {{
-    // Start fast ticking, slow down as spin ends
-    let elapsed = 0;
-    const interval = 60; // ms between ticks initially
-    tickInterval = setInterval(() => {{
-        elapsed += interval;
-        const progress = elapsed / duration;
-        // Tick slower as wheel slows — reduce volume too
-        const vol = 0.4 + 0.6 * (1 - progress);
-        playTick(vol);
-        // Slow the tick rate as spin nears end
-        if (progress > 0.7) {{
-            clearInterval(tickInterval);
-            tickInterval = setInterval(() => {{
-                elapsed += 200;
-                const p2 = elapsed / duration;
-                playTick(0.3 * (1 - p2));
-                if (elapsed >= duration) {{ clearInterval(tickInterval); tickInterval = null; }}
-            }}, 200);
-        }}
-    }}, interval);
+    stopTickSound();
+    const startTime = performance.now();
+
+    function scheduleTick() {{
+        const elapsed  = performance.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        if (progress >= 1) return;
+
+        // Tick interval: 40ms at start → 400ms at end (matches easeOut deceleration)
+        const eased       = 1 - Math.pow(1 - progress, 4); // same easing as wheel
+        const intervalMs  = 40 + eased * 360;
+        const volume      = 0.9 - eased * 0.5;             // louder at start
+
+        playTick(volume);
+        tickTimeout = setTimeout(scheduleTick, intervalMs);
+    }}
+
+    scheduleTick();
 }}
 
 function stopTickSound() {{
-    if (tickInterval) {{ clearInterval(tickInterval); tickInterval = null; }}
+    if (tickTimeout) {{ clearTimeout(tickTimeout); tickTimeout = null; }}
 }}
 
 // Result sound — play faah.mp4
@@ -686,6 +694,9 @@ function getSegmentAtPointer(a) {{
 
 function startSpin() {{
     if (spinning || !confirmedName || alreadySpun) return;
+
+    // 🔊 Resume AudioContext on user gesture (required by browsers)
+    getAudioCtx();
 
     spinning = true;
     document.getElementById('spinBtn').disabled = true;
