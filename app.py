@@ -43,17 +43,8 @@ if "save_name" in params and "save_amount" in params:
     st.query_params.clear()
     st.rerun()
 
-# ── Handle admin actions ─────────────────────────────────────
-if "admin_clear" in params and params["admin_clear"] == "1":
-    if os.path.exists(NAMES_FILE):
-        os.remove(NAMES_FILE)
-    st.query_params.clear()
-    st.rerun()
-
 spun_names     = get_spun_names()
-all_records    = load_all_records()
 spun_json      = json.dumps(spun_names)
-records_json   = json.dumps(all_records)
 
 # ── Global CSS: just kill Streamlit chrome ───────────────────
 st.markdown("""
@@ -400,90 +391,7 @@ canvas {{
     overflow: hidden;
 }}
 
-/* ── History section ── */
-.section-card {{
-    width: 100%;
-    background: rgba(255,255,255,0.04);
-    border: 1.5px solid rgba(255,255,255,0.1);
-    border-radius: 18px;
-    overflow: hidden;
-}}
-.section-header {{
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 16px;
-    cursor: pointer;
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
-    background: rgba(255,255,255,0.03);
-}}
-.section-header span {{
-    font-family: 'Baloo 2', cursive;
-    font-size: 1rem;
-    font-weight: 800;
-    color: rgba(255,255,255,0.85);
-}}
-.section-chevron {{ color: rgba(255,255,255,0.5); transition: transform 0.25s; font-size:1rem; }}
-.section-body {{
-    display: none;
-    padding: 0 14px 14px;
-    max-height: 280px;
-    overflow-y: auto;
-}}
-.section-body.open {{ display: block; }}
 
-.hist-item {{
-    padding: 8px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    font-size: 0.88rem;
-    color: rgba(255,255,255,0.75);
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    align-items: center;
-}}
-.hist-item:last-child {{ border-bottom: none; }}
-.hist-name  {{ color: #fff; font-weight: 800; }}
-.hist-amt   {{ color: #ffd700; font-weight: 800; }}
-.hist-time  {{ color: rgba(255,255,255,0.35); font-size:0.76rem; margin-left: auto; }}
-.hist-empty {{ color: rgba(255,255,255,0.4); text-align:center; padding: 16px 0; font-size:0.9rem; }}
-
-/* ── Admin section ── */
-.admin-body {{
-    display: none;
-    padding: 14px;
-    display: none;
-    flex-direction: column;
-    gap: 10px;
-}}
-.admin-body.open {{ display: flex; }}
-.admin-input {{
-    background: rgba(255,255,255,0.08);
-    border: 1.5px solid rgba(255,255,255,0.2);
-    border-radius: 10px;
-    color: #fff;
-    font-family: 'Nunito', sans-serif;
-    font-size: 0.95rem;
-    padding: 9px 14px;
-    outline: none;
-    width: 100%;
-}}
-.admin-input:focus {{ border-color: #ffd700; }}
-.admin-btn {{
-    background: rgba(255,80,80,0.2);
-    border: 1.5px solid rgba(255,80,80,0.4);
-    border-radius: 10px;
-    color: #ff9090;
-    font-family: 'Nunito', sans-serif;
-    font-size: 0.9rem;
-    font-weight: 800;
-    padding: 9px 16px;
-    cursor: pointer;
-    text-align: center;
-    -webkit-tap-highlight-color: transparent;
-}}
-.admin-msg {{ font-size: 0.85rem; color: rgba(255,255,255,0.5); }}
 </style>
 </head>
 <body>
@@ -522,37 +430,6 @@ canvas {{
     <button class="spin-btn" id="spinBtn" onclick="startSpin()" disabled>🎰 &nbsp;SPIN!</button>
   </div>
 
-  <!-- History -->
-  <div class="section-card">
-    <div class="section-header" onclick="toggleSection('hist')">
-      <span>📋 Spin History (<span id="histCount">0</span>)</span>
-      <span class="section-chevron" id="histChevron">▼</span>
-    </div>
-    <div class="section-body" id="histBody"></div>
-  </div>
-
-  <!-- Admin -->
-  <div class="section-card">
-    <div class="section-header" onclick="toggleSection('admin')">
-      <span>🔐 Admin Panel</span>
-      <span class="section-chevron" id="adminChevron">▼</span>
-    </div>
-    <div class="admin-body" id="adminBody">
-      <input class="admin-input" id="adminPass" type="password" placeholder="Admin password…"
-             onkeydown="if(event.key==='Enter') checkAdmin()">
-      <button class="admin-btn" onclick="checkAdmin()">Unlock</button>
-      <div id="adminMsg" class="admin-msg"></div>
-      <div id="adminControls" style="display:none; flex-direction:column; gap:8px;">
-        <button class="admin-btn" style="color:#ff6b6b;border-color:rgba(255,80,80,0.5)"
-                onclick="clearRecords()">🗑️ Clear All Records</button>
-        <a id="downloadLink" class="admin-btn"
-           style="color:#6dffad;border-color:rgba(46,204,113,0.4);text-decoration:none;display:block;text-align:center">
-          📥 Download Records
-        </a>
-      </div>
-    </div>
-  </div>
-
 </div><!-- /app -->
 
 <!-- Result overlay -->
@@ -573,8 +450,6 @@ canvas {{
    DATA
 ═══════════════════════════════════════════════════════ */
 const SPUN_NAMES   = {spun_json};
-const ALL_RECORDS  = {records_json};
-const ADMIN_PASS   = "eid2025";
 
 const SEGMENTS = [
   "1","9.75","7.50","9.50","4.75",
@@ -819,74 +694,8 @@ function launchConfetti() {{
     }}
 }}
 
-/* ═══════════════════════════════════════════════════════
-   HISTORY
-═══════════════════════════════════════════════════════ */
-function renderHistory() {{
-    const body  = document.getElementById('histBody');
-    const count = document.getElementById('histCount');
-    count.textContent = ALL_RECORDS.length;
-
-    if (!ALL_RECORDS.length) {{
-        body.innerHTML = '<div class="hist-empty">No spins yet! Be the first 🎉</div>';
-        return;
-    }}
-    const reversed = [...ALL_RECORDS].reverse().slice(0, 40);
-    body.innerHTML = reversed.map(r => {{
-        const p = r.split('|').map(x => x.trim());
-        const name = p[0] || '', amt = p[1] || '', ts = p[2] || '';
-        return `<div class="hist-item">
-            <span>🎁</span>
-            <span class="hist-name">${{name}}</span>
-            <span style="color:rgba(255,255,255,0.4)">→</span>
-            <span class="hist-amt">${{amt}} Taka</span>
-            <span class="hist-time">${{ts}}</span>
-        </div>`;
-    }}).join('');
-}}
-renderHistory();
-
-/* ═══════════════════════════════════════════════════════
-   SECTIONS TOGGLE
-═══════════════════════════════════════════════════════ */
-function toggleSection(which) {{
-    const body    = document.getElementById(which + 'Body');
-    const chevron = document.getElementById(which + 'Chevron');
-    const open    = body.classList.toggle('open');
-    chevron.style.transform = open ? 'rotate(180deg)' : '';
-}}
-
-/* ═══════════════════════════════════════════════════════
-   ADMIN
-═══════════════════════════════════════════════════════ */
-function checkAdmin() {{
-    const pass = document.getElementById('adminPass').value;
-    const msg  = document.getElementById('adminMsg');
-    const ctrl = document.getElementById('adminControls');
-    if (pass === ADMIN_PASS) {{
-        msg.textContent = '✅ Access granted';
-        msg.style.color = '#6dffad';
-        ctrl.style.display = 'flex';
-        // Build download link
-        const content = ALL_RECORDS.join('\\n');
-        const blob = new Blob([content], {{type:'text/plain'}});
-        document.getElementById('downloadLink').href = URL.createObjectURL(blob);
-        document.getElementById('downloadLink').download = 'salami_records.txt';
-    }} else {{
-        msg.textContent = '❌ Wrong password';
-        msg.style.color = '#ff9090';
-        ctrl.style.display = 'none';
-    }}
-}}
-
-function clearRecords() {{
-    if (!confirm('Clear ALL records? This cannot be undone!')) return;
-    const url = new URL(window.parent.location.href);
-    url.searchParams.set('admin_clear', '1');
-    window.parent.location.href = url.toString();
-}}
 </script>
 </body>
 </html>"""
 
-components.html(html, height=1100, scrolling=True)
+components.html(html, height=880, scrolling=False)
