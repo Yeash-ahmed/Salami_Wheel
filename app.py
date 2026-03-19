@@ -492,7 +492,7 @@ canvas {{
 
   <!-- Header -->
   <div class="header">
-   <h1>🌙 ইয়াস ভাই এর সালামি হুইল 🎉</h1>
+    <h1>🌙 ইয়াস ভাই এর সালামি হুইল 🎉</h1>
     <p>Pick your Eid Salami!! 🤩 &nbsp;—&nbsp; Each person spins once!</p>
   </div>
 
@@ -819,4 +819,74 @@ function launchConfetti() {{
     }}
 }}
 
+/* ═══════════════════════════════════════════════════════
+   HISTORY
+═══════════════════════════════════════════════════════ */
+function renderHistory() {{
+    const body  = document.getElementById('histBody');
+    const count = document.getElementById('histCount');
+    count.textContent = ALL_RECORDS.length;
 
+    if (!ALL_RECORDS.length) {{
+        body.innerHTML = '<div class="hist-empty">No spins yet! Be the first 🎉</div>';
+        return;
+    }}
+    const reversed = [...ALL_RECORDS].reverse().slice(0, 40);
+    body.innerHTML = reversed.map(r => {{
+        const p = r.split('|').map(x => x.trim());
+        const name = p[0] || '', amt = p[1] || '', ts = p[2] || '';
+        return `<div class="hist-item">
+            <span>🎁</span>
+            <span class="hist-name">${{name}}</span>
+            <span style="color:rgba(255,255,255,0.4)">→</span>
+            <span class="hist-amt">${{amt}} Taka</span>
+            <span class="hist-time">${{ts}}</span>
+        </div>`;
+    }}).join('');
+}}
+renderHistory();
+
+/* ═══════════════════════════════════════════════════════
+   SECTIONS TOGGLE
+═══════════════════════════════════════════════════════ */
+function toggleSection(which) {{
+    const body    = document.getElementById(which + 'Body');
+    const chevron = document.getElementById(which + 'Chevron');
+    const open    = body.classList.toggle('open');
+    chevron.style.transform = open ? 'rotate(180deg)' : '';
+}}
+
+/* ═══════════════════════════════════════════════════════
+   ADMIN
+═══════════════════════════════════════════════════════ */
+function checkAdmin() {{
+    const pass = document.getElementById('adminPass').value;
+    const msg  = document.getElementById('adminMsg');
+    const ctrl = document.getElementById('adminControls');
+    if (pass === ADMIN_PASS) {{
+        msg.textContent = '✅ Access granted';
+        msg.style.color = '#6dffad';
+        ctrl.style.display = 'flex';
+        // Build download link
+        const content = ALL_RECORDS.join('\\n');
+        const blob = new Blob([content], {{type:'text/plain'}});
+        document.getElementById('downloadLink').href = URL.createObjectURL(blob);
+        document.getElementById('downloadLink').download = 'salami_records.txt';
+    }} else {{
+        msg.textContent = '❌ Wrong password';
+        msg.style.color = '#ff9090';
+        ctrl.style.display = 'none';
+    }}
+}}
+
+function clearRecords() {{
+    if (!confirm('Clear ALL records? This cannot be undone!')) return;
+    const url = new URL(window.parent.location.href);
+    url.searchParams.set('admin_clear', '1');
+    window.parent.location.href = url.toString();
+}}
+</script>
+</body>
+</html>"""
+
+components.html(html, height=1100, scrolling=True)
