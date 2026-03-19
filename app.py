@@ -11,6 +11,10 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# ── Serve static files (faah.mp4 must be in ./static/faah.mp4) ──
+# Streamlit serves files from the 'static' folder automatically
+# Place faah.mp4 in the same directory as app.py inside a folder called 'static'
+
 NAMES_FILE = "spun_names.txt"
 
 def load_all_records():
@@ -400,7 +404,7 @@ canvas {{
 
   <!-- Header -->
   <div class="header">
-     <h1>🌙 ইয়াস ভাই এর সালামি হুইল 🎉</h1>
+      <h1>🌙 ইয়াস ভাইয়ের সালামি হুইল 🎉</h1>
     <p>Pick your Eid Salami!! 🤩 &nbsp;—&nbsp; Each person spins once!</p>
   </div>
 
@@ -431,6 +435,11 @@ canvas {{
   </div>
 
 </div><!-- /app -->
+
+<!-- Result audio -->
+<audio id="resultAudio" preload="auto">
+  <source src="/app/static/faah.mp4" type="video/mp4">
+</audio>
 
 <!-- Result overlay -->
 <div class="confetti-layer" id="confettiLayer"></div>
@@ -588,6 +597,74 @@ function shakeInput() {{
 }}
 
 /* ═══════════════════════════════════════════════════════
+   SOUND
+═══════════════════════════════════════════════════════ */
+let audioCtx = null;
+let tickInterval = null;
+
+function getAudioCtx() {{
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtx;
+}}
+
+// Ticking sound during spin — short click noise
+function playTick(volume) {{
+    try {{
+        const ctx = getAudioCtx();
+        const buf = ctx.createBuffer(1, ctx.sampleRate * 0.03, ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) {{
+            data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 6);
+        }}
+        const src = ctx.createBufferSource();
+        src.buffer = buf;
+        const gain = ctx.createGain();
+        gain.gain.value = Math.min(volume, 1.0);
+        src.connect(gain); gain.connect(ctx.destination);
+        src.start();
+    }} catch(e) {{}}
+}}
+
+function startTickSound(duration) {{
+    // Start fast ticking, slow down as spin ends
+    let elapsed = 0;
+    const interval = 60; // ms between ticks initially
+    tickInterval = setInterval(() => {{
+        elapsed += interval;
+        const progress = elapsed / duration;
+        // Tick slower as wheel slows — reduce volume too
+        const vol = 0.4 + 0.6 * (1 - progress);
+        playTick(vol);
+        // Slow the tick rate as spin nears end
+        if (progress > 0.7) {{
+            clearInterval(tickInterval);
+            tickInterval = setInterval(() => {{
+                elapsed += 200;
+                const p2 = elapsed / duration;
+                playTick(0.3 * (1 - p2));
+                if (elapsed >= duration) {{ clearInterval(tickInterval); tickInterval = null; }}
+            }}, 200);
+        }}
+    }}, interval);
+}}
+
+function stopTickSound() {{
+    if (tickInterval) {{ clearInterval(tickInterval); tickInterval = null; }}
+}}
+
+// Result sound — play faah.mp4
+function playResultSound() {{
+    try {{
+        const audio = document.getElementById('resultAudio');
+        if (audio) {{
+            audio.currentTime = 0;
+            audio.volume = 1.0;
+            audio.play().catch(() => {{}});
+        }}
+    }} catch(e) {{}}
+}}
+
+/* ═══════════════════════════════════════════════════════
    SPIN
 ═══════════════════════════════════════════════════════ */
 function easeOut(t) {{ return 1 - Math.pow(1-t, 4); }}
@@ -619,6 +696,9 @@ function startSpin() {{
     const startA    = wheelAngle;
     const startTime = performance.now();
 
+    // 🔊 Start tick sound
+    startTickSound(duration);
+
     function frame(now) {{
         const p = Math.min((now - startTime) / duration, 1);
         wheelAngle = startA + totalAngle * easeOut(p);
@@ -632,6 +712,7 @@ function startSpin() {{
                 wheelAngle = targetAngle;
                 draw(wheelAngle);
             }}
+            stopTickSound();
             spinning = false;
             showResult(actual);
         }}
@@ -648,6 +729,8 @@ function showResult(idx) {{
     document.getElementById('rcAmt').textContent  = amt;
     document.getElementById('overlay').classList.add('show');
     launchConfetti();
+    // 🔊 Play result sound
+    playResultSound();
 
     // Save to Streamlit backend via URL
     const url = new URL(window.parent.location.href);
