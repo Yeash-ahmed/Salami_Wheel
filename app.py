@@ -183,7 +183,7 @@ hr { border-color: rgba(255,255,255,0.1) !important; }
 # ── Header ──
 st.markdown("""
 <div class="site-header">
-    <h1>🎡 Salami Wheel 🎉</h1>
+    <h1>🌙 ইয়াস ভাই এর সালামি হুইল 🎉</h1>
     <p>Pick your Eid Salami!! &nbsp;🤩&nbsp; Each person spins once!</p>
 </div>
 """, unsafe_allow_html=True)
