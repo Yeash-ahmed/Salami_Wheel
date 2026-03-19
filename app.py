@@ -11,9 +11,19 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ── Serve static files (faah.mp4 must be in ./static/faah.mp4) ──
-# Streamlit serves files from the 'static' folder automatically
-# Place faah.mp4 in the same directory as app.py inside a folder called 'static'
+# ── Embed faah.mp4 as base64 — no static folder needed ──────────
+import base64
+
+def load_audio_b64(filename):
+    """Load audio file as base64 data URI. File must be in same dir as app.py."""
+    for path in [filename, os.path.join(os.path.dirname(__file__), filename)]:
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode()
+            return f"data:audio/mp4;base64,{b64}"
+    return ""
+
+FAAH_AUDIO_SRC = load_audio_b64("faah.mp4")
 
 NAMES_FILE = "spun_names.txt"
 
@@ -404,7 +414,7 @@ canvas {{
 
   <!-- Header -->
   <div class="header">
-      <h1>🌙 ইয়াস ভাইয়ের সালামি হুইল 🎉</h1>
+    <h1>🌙 ইয়াস ভাইয়ের সালামি হুইল 🎉</h1>
     <p>Pick your Eid Salami!! 🤩 &nbsp;—&nbsp; Each person spins once!</p>
   </div>
 
@@ -438,7 +448,7 @@ canvas {{
 
 <!-- Result audio -->
 <audio id="resultAudio" preload="auto">
-  <source src="/app/static/faah.mp4" type="video/mp4">
+  <source src="{FAAH_AUDIO_SRC}" type="audio/mp4">
 </audio>
 
 <!-- Result overlay -->
