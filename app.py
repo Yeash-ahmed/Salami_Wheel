@@ -7,13 +7,13 @@ from datetime import datetime
 st.set_page_config(
     page_title="🎡 Salami Wheel - Eid Special",
     page_icon="🎡",
-    layout="wide",
+    layout="centered",
     initial_sidebar_state="collapsed"
 )
 
 NAMES_FILE = "spun_names.txt"
 
-def load_spun_names():
+def load_all_records():
     if os.path.exists(NAMES_FILE):
         with open(NAMES_FILE, "r", encoding="utf-8") as f:
             return [line.strip() for line in f.readlines() if line.strip()]
@@ -24,239 +24,235 @@ def save_name(name, amount):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         f.write(f"{name} | {amount} | {timestamp}\n")
 
-def get_spun_names_only():
+def get_spun_names():
     names = []
-    if os.path.exists(NAMES_FILE):
-        with open(NAMES_FILE, "r", encoding="utf-8") as f:
-            for line in f.readlines():
-                if line.strip():
-                    parts = line.strip().split("|")
-                    if parts:
-                        names.append(parts[0].strip().lower())
+    for record in load_all_records():
+        parts = record.split("|")
+        if parts:
+            names.append(parts[0].strip().lower())
     return names
 
-if "spin_result" not in st.session_state:
-    st.session_state.spin_result = None
-
-spun_names = get_spun_names_only()
-spun_names_json = json.dumps(spun_names)
-
+# ── Handle save from JS ──────────────────────────────────────
 params = st.query_params
-if "result_name" in params and "result_amount" in params:
-    name = params["result_name"]
-    amount = params["result_amount"]
-    if name.lower() not in spun_names:
-        save_name(name, amount)
-        st.session_state.spin_result = f"{name} got {amount} Taka!"
+if "save_name" in params and "save_amount" in params:
+    n = params["save_name"].strip()
+    a = params["save_amount"].strip()
+    existing = get_spun_names()
+    if n.lower() not in existing:
+        save_name(n, a)
     st.query_params.clear()
     st.rerun()
 
+# ── Handle admin actions ─────────────────────────────────────
+if "admin_clear" in params and params["admin_clear"] == "1":
+    if os.path.exists(NAMES_FILE):
+        os.remove(NAMES_FILE)
+    st.query_params.clear()
+    st.rerun()
+
+spun_names     = get_spun_names()
+all_records    = load_all_records()
+spun_json      = json.dumps(spun_names)
+records_json   = json.dumps(all_records)
+
+# ── Global CSS: just kill Streamlit chrome ───────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800;900&family=Nunito:wght@600;700;800&display=swap');
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+* { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, .stApp {
-    background: radial-gradient(ellipse at top, #2d0a5e 0%, #1a0333 50%, #0d0120 100%) !important;
-    font-family: 'Nunito', sans-serif !important;
-    min-height: 100vh;
+    background: #0d0120 !important;
+    overflow-x: hidden;
 }
-
 .main .block-container {
-    padding: 1.5rem 1rem !important;
-    max-width: 700px !important;
-    margin: 0 auto !important;
+    padding: 0 !important;
+    max-width: 100% !important;
 }
-
-section[data-testid="stSidebar"] { display: none !important; }
-
-h1, h2, h3 { font-family: 'Baloo 2', cursive !important; }
-
-/* Header */
-.site-header {
-    text-align: center;
-    margin-bottom: 1.2rem;
-    padding: 1.2rem 1rem;
-    background: linear-gradient(135deg, rgba(255,107,53,0.15), rgba(255,215,0,0.08));
-    border: 2px solid rgba(255,215,0,0.25);
-    border-radius: 24px;
-    backdrop-filter: blur(10px);
-}
-.site-header h1 {
-    font-size: clamp(1.8rem, 6vw, 2.8rem) !important;
-    color: #ffd700 !important;
-    text-shadow: 0 0 30px rgba(255,215,0,0.6), 0 2px 8px rgba(0,0,0,0.5);
-    margin: 0 !important;
-    letter-spacing: 2px;
-}
-.site-header p {
-    color: rgba(255,255,255,0.85) !important;
-    font-size: clamp(0.9rem, 3vw, 1.1rem) !important;
-    margin: 0.4rem 0 0 !important;
-}
-
-/* Name input */
-.stTextInput > div > div > input {
-    background: rgba(255,255,255,0.08) !important;
-    border: 2.5px solid rgba(255,215,0,0.4) !important;
-    border-radius: 60px !important;
-    color: white !important;
-    font-family: 'Nunito', sans-serif !important;
-    font-size: 1.15rem !important;
-    font-weight: 700 !important;
-    padding: 0.75rem 1.5rem !important;
-    text-align: center !important;
-    transition: all 0.2s !important;
-}
-.stTextInput > div > div > input:focus {
-    border-color: #ffd700 !important;
-    box-shadow: 0 0 20px rgba(255,215,0,0.3) !important;
-    background: rgba(255,255,255,0.12) !important;
-}
-.stTextInput > div > div > input::placeholder { color: rgba(255,255,255,0.45) !important; }
-.stTextInput label { display: none !important; }
-
-/* Banners */
-.already-spun {
-    background: linear-gradient(135deg, rgba(255,50,50,0.2), rgba(200,0,0,0.15));
-    border: 2px solid rgba(255,80,80,0.6);
-    border-radius: 16px;
-    padding: 0.9rem 1.2rem;
-    text-align: center;
-    color: #ff9090;
-    font-weight: 800;
-    font-size: 1rem;
-    margin: 0.5rem 0;
-}
-.result-banner {
-    background: linear-gradient(135deg, #ffd700, #ff8c00);
-    border-radius: 20px;
-    padding: 1rem 1.5rem;
-    text-align: center;
-    margin: 0.7rem 0;
-    box-shadow: 0 6px 30px rgba(255,215,0,0.5);
-    animation: bannerPop 0.5s cubic-bezier(0.34,1.56,0.64,1);
-}
-@keyframes bannerPop {
-    from { transform: scale(0.8); opacity: 0; }
-    to   { transform: scale(1);   opacity: 1; }
-}
-.result-banner h2 {
-    color: #1a0333 !important;
-    margin: 0 !important;
-    font-size: clamp(1rem, 4vw, 1.4rem) !important;
-}
-
-/* History & admin */
-.history-box {
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 16px;
-    padding: 1rem;
-}
-.history-title {
-    color: #ffd700;
-    font-family: 'Baloo 2', cursive;
-    font-size: 1.05rem;
-    font-weight: 800;
-    margin-bottom: 0.6rem;
-}
-.history-item {
-    color: rgba(255,255,255,0.75);
-    font-size: 0.85rem;
-    padding: 0.35rem 0;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-
-.stExpander {
-    background: rgba(255,255,255,0.04) !important;
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    border-radius: 16px !important;
-}
-.stExpander summary { color: rgba(255,255,255,0.8) !important; }
-
-hr { border-color: rgba(255,255,255,0.1) !important; }
+section[data-testid="stSidebar"]      { display: none !important; }
+header[data-testid="stHeader"]        { display: none !important; }
+footer                                { display: none !important; }
+#MainMenu                             { display: none !important; }
+.stDeployButton                       { display: none !important; }
+iframe { border: none !important; display: block; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Header ──
-st.markdown("""
-<div class="site-header">
-    <h1>🌙 ইয়াস ভাই এর সালামি হুইল 🎉</h1>
-    <p>Pick your Eid Salami!! &nbsp;🤩&nbsp; Each person spins once!</p>
-</div>
-""", unsafe_allow_html=True)
-
-name_input = st.text_input("name", placeholder="✍️  Enter your name to spin…",
-                            key="name_field", label_visibility="collapsed")
-
-already_spun = name_input.strip().lower() in spun_names if name_input.strip() else False
-
-if already_spun:
-    st.markdown(f'<div class="already-spun">❌ &nbsp;<b>{name_input.strip()}</b>&nbsp; has already spun! Each person gets one chance only. 🚫</div>',
-                unsafe_allow_html=True)
-
-if st.session_state.spin_result:
-    st.markdown(f'<div class="result-banner"><h2>🎊 {st.session_state.spin_result} 🎊</h2></div>',
-                unsafe_allow_html=True)
-
-# ─────────────────────────────────────────────────────────────────────────────
-# WHEEL HTML  –  canvas 560 px, text 13-14 px bold, thick borders, glow ring
-# ─────────────────────────────────────────────────────────────────────────────
-wheel_html = f"""<!DOCTYPE html>
-<html>
+# ── Build the full page as one self-contained HTML ───────────
+html = f"""<!DOCTYPE html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@800&family=Nunito:wght@700;800&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800;900&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
-* {{ margin:0; padding:0; box-sizing:border-box; }}
-html, body {{
-    background: transparent;
-    overflow: hidden;
+/* ── Reset ── */
+*, *::before, *::after {{ box-sizing: border-box; margin: 0; padding: 0; }}
+
+body {{
+    font-family: 'Nunito', sans-serif;
+    background: radial-gradient(ellipse at top, #2d0a5e 0%, #1a0333 55%, #0d0120 100%);
+    min-height: 100vh;
+    color: #fff;
+    overflow-x: hidden;
+}}
+
+/* ── Layout wrapper ── */
+.app {{
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 16px 14px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+}}
+
+/* ── Header ── */
+.header {{
+    width: 100%;
+    text-align: center;
+    background: linear-gradient(135deg, rgba(255,107,53,0.18), rgba(255,215,0,0.09));
+    border: 2px solid rgba(255,215,0,0.3);
+    border-radius: 22px;
+    padding: 14px 12px 12px;
+}}
+.header h1 {{
+    font-family: 'Baloo 2', cursive;
+    font-size: clamp(1.6rem, 7vw, 2.4rem);
+    color: #ffd700;
+    text-shadow: 0 0 24px rgba(255,215,0,0.65);
+    letter-spacing: 1px;
+    line-height: 1.1;
+}}
+.header p {{
+    color: rgba(255,255,255,0.8);
+    font-size: clamp(0.82rem, 3.5vw, 1rem);
+    margin-top: 4px;
+}}
+
+/* ── Name card ── */
+.name-card {{
+    width: 100%;
+    background: rgba(255,255,255,0.06);
+    border: 2px solid rgba(255,215,0,0.35);
+    border-radius: 20px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}}
+.name-card label {{
+    font-family: 'Baloo 2', cursive;
+    font-size: 1rem;
+    color: #ffd700;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}}
+.name-row {{
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}}
+.name-input {{
+    flex: 1;
+    background: rgba(255,255,255,0.1);
+    border: 2px solid rgba(255,215,0,0.5);
+    border-radius: 50px;
+    color: #fff;
+    font-family: 'Nunito', sans-serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+    padding: 12px 18px;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+}}
+.name-input::placeholder {{ color: rgba(255,255,255,0.4); font-weight: 600; }}
+.name-input:focus {{
+    border-color: #ffd700;
+    background: rgba(255,255,255,0.15);
+    box-shadow: 0 0 18px rgba(255,215,0,0.35);
+}}
+.confirm-btn {{
+    background: linear-gradient(135deg, #ffd700, #ff8c00);
+    color: #1a0333;
+    border: none;
+    border-radius: 50px;
+    font-family: 'Baloo 2', cursive;
+    font-size: 0.95rem;
+    font-weight: 900;
+    padding: 12px 20px;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(255,140,0,0.45);
+    transition: transform 0.15s, box-shadow 0.15s;
+    -webkit-tap-highlight-color: transparent;
+}}
+.confirm-btn:active {{ transform: scale(0.95); }}
+
+/* Status chips */
+.status-chip {{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border-radius: 50px;
+    font-size: 0.9rem;
+    font-weight: 800;
+}}
+.chip-ok  {{
+    background: rgba(46,204,113,0.15);
+    border: 1.5px solid rgba(46,204,113,0.5);
+    color: #6dffad;
+}}
+.chip-err {{
+    background: rgba(255,80,80,0.15);
+    border: 1.5px solid rgba(255,80,80,0.5);
+    color: #ff9090;
+}}
+.chip-dot {{
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}}
+.chip-ok  .chip-dot {{ background: #2ecc71; box-shadow: 0 0 6px #2ecc71; }}
+.chip-err .chip-dot {{ background: #ff5050; box-shadow: 0 0 6px #ff5050; }}
+
+/* ── Wheel area ── */
+.wheel-area {{
     width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
+    gap: 0;
+    position: relative;
 }}
 
-.scene {{
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 10px 0 16px;
-}}
-
-/* Outer decorative ring around the whole wheel assembly */
 .wheel-wrap {{
     position: relative;
-    width: min(560px, 96vw);
-    height: min(560px, 96vw);
+    width: min(480px, 94vw);
+    height: min(480px, 94vw);
 }}
 
-/* Golden outer ring */
+/* Rotating rainbow ring */
 .wheel-wrap::before {{
     content: '';
     position: absolute;
     inset: -8px;
     border-radius: 50%;
-    background: conic-gradient(#ffd700, #ff6b35, #ffd700, #2ecc71, #ffd700, #3498db, #ffd700);
+    background: conic-gradient(#ffd700, #ff6b35, #2ecc71, #3498db, #9b59b6, #ffd700);
+    animation: ringRot 6s linear infinite;
+    opacity: 0.75;
     z-index: 0;
-    animation: ringRotate 8s linear infinite;
-    opacity: 0.7;
 }}
-@keyframes ringRotate {{ to {{ transform: rotate(360deg); }} }}
-
 .wheel-wrap::after {{
     content: '';
     position: absolute;
-    inset: -4px;
+    inset: -3px;
     border-radius: 50%;
-    background: radial-gradient(ellipse, #1a0333 60%, transparent 100%);
+    background: #1a0333;
     z-index: 0;
 }}
+@keyframes ringRot {{ to {{ transform: rotate(360deg); }} }}
 
 canvas {{
     position: relative;
@@ -265,135 +261,137 @@ canvas {{
     height: 100%;
     border-radius: 50%;
     display: block;
-    filter: drop-shadow(0 0 24px rgba(255,215,0,0.55)) drop-shadow(0 0 48px rgba(255,107,53,0.35));
+    filter: drop-shadow(0 0 20px rgba(255,215,0,0.5)) drop-shadow(0 0 40px rgba(255,107,53,0.3));
 }}
 
-/* Pointer – bigger & more visible */
+/* Pointer */
 .pointer {{
     position: absolute;
-    right: -26px;
+    right: -22px;
     top: 50%;
     transform: translateY(-50%);
     z-index: 10;
     display: flex;
     align-items: center;
-    gap: 0;
 }}
-.pointer-arrow {{
+.ptr-arrow {{
     width: 0; height: 0;
-    border-top: 26px solid transparent;
-    border-bottom: 26px solid transparent;
-    border-right: 50px solid #ffd700;
-    filter: drop-shadow(0 0 12px rgba(255,215,0,0.9)) drop-shadow(0 0 4px #000);
+    border-top: 22px solid transparent;
+    border-bottom: 22px solid transparent;
+    border-right: 44px solid #ffd700;
+    filter: drop-shadow(0 0 10px rgba(255,215,0,0.9));
 }}
-.pointer-knob {{
-    width: 20px; height: 20px;
-    background: radial-gradient(circle, #fff 30%, #ffd700 100%);
+.ptr-ball {{
+    width: 16px; height: 16px;
+    background: radial-gradient(circle, #fff 25%, #ffd700 80%);
     border-radius: 50%;
-    box-shadow: 0 0 12px #ffd700, 0 0 4px #000;
-    margin-left: -6px;
+    margin-left: -5px;
+    box-shadow: 0 0 10px #ffd700;
     z-index: 2;
 }}
 
-/* Spin button */
+/* ── SPIN button ── */
 .spin-btn {{
-    margin: 18px auto 0;
-    display: block;
+    margin-top: 16px;
+    width: min(440px, 90vw);
     background: linear-gradient(135deg, #ff6b35 0%, #f7931e 50%, #ffd700 100%);
     color: #1a0333;
     border: none;
     border-radius: 60px;
     font-family: 'Baloo 2', cursive;
-    font-size: clamp(1.1rem, 4vw, 1.45rem);
+    font-size: clamp(1.1rem, 5vw, 1.4rem);
     font-weight: 900;
-    padding: 14px 0;
+    padding: 15px 0;
     cursor: pointer;
     letter-spacing: 2px;
-    width: min(440px, 88vw);
-    box-shadow: 0 6px 30px rgba(255,107,53,0.55), 0 2px 0 rgba(0,0,0,0.3) inset;
-    transition: transform 0.15s, box-shadow 0.15s;
     text-transform: uppercase;
+    box-shadow: 0 6px 28px rgba(255,107,53,0.55);
+    transition: transform 0.15s, box-shadow 0.15s;
+    -webkit-tap-highlight-color: transparent;
     position: relative;
     overflow: hidden;
 }}
 .spin-btn::after {{
-    content: '';
-    position: absolute;
-    top: 0; left: -60%;
-    width: 40%; height: 100%;
-    background: rgba(255,255,255,0.25);
+    content:'';
+    position:absolute; top:0; left:-60%;
+    width:40%; height:100%;
+    background: rgba(255,255,255,0.22);
     transform: skewX(-20deg);
     transition: left 0.4s;
 }}
-.spin-btn:hover:not(:disabled)::after {{ left: 120%; }}
-.spin-btn:hover:not(:disabled) {{
-    transform: translateY(-3px) scale(1.02);
-    box-shadow: 0 10px 40px rgba(255,107,53,0.75);
-}}
-.spin-btn:active:not(:disabled) {{ transform: scale(0.97); }}
+.spin-btn:not(:disabled):hover::after {{ left:120%; }}
+.spin-btn:not(:disabled):active {{ transform: scale(0.97); }}
 .spin-btn:disabled {{
-    background: linear-gradient(135deg, #555, #777);
-    color: #aaa;
-    cursor: not-allowed;
+    background: linear-gradient(135deg, #444, #666);
+    color: #999;
     box-shadow: none;
+    cursor: not-allowed;
 }}
 
-/* Result overlay */
+/* ── Result overlay (inside iframe) ── */
 .overlay {{
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.88);
+    background: rgba(0,0,0,0.87);
     z-index: 200;
     align-items: center;
     justify-content: center;
-    animation: fadeIn 0.25s ease;
+    padding: 20px;
 }}
 .overlay.show {{ display: flex; }}
-@keyframes fadeIn {{ from {{ opacity:0 }} to {{ opacity:1 }} }}
 
 .result-card {{
-    background: linear-gradient(160deg, #1a0533 0%, #2d1155 100%);
+    background: linear-gradient(160deg, #1a0533, #2d1155);
     border: 3px solid #ffd700;
     border-radius: 28px;
-    padding: 2.2rem 2.4rem;
+    padding: clamp(1.4rem, 5vw, 2rem) clamp(1.2rem, 5vw, 2rem);
     text-align: center;
-    max-width: 340px;
-    width: 90vw;
-    box-shadow: 0 0 80px rgba(255,215,0,0.45), 0 0 160px rgba(255,107,53,0.25);
+    width: 100%;
+    max-width: 360px;
+    box-shadow: 0 0 70px rgba(255,215,0,0.4);
     animation: cardPop 0.45s cubic-bezier(0.34,1.56,0.64,1);
 }}
 @keyframes cardPop {{
-    from {{ transform: scale(0.4) rotate(-6deg); opacity:0; }}
+    from {{ transform: scale(0.4) rotate(-5deg); opacity:0; }}
     to   {{ transform: scale(1)   rotate(0deg);  opacity:1; }}
 }}
-.rc-emoji  {{ font-size: 3.5rem; line-height: 1; margin-bottom: 0.4rem; }}
-.rc-name   {{ color: #ffd700; font-family:'Baloo 2',cursive; font-size: 1.6rem; font-weight:900; }}
-.rc-label  {{ color: rgba(255,255,255,0.55); font-size: 0.9rem; margin: 0.3rem 0; }}
-.rc-amount {{
-    color: #fff;
+.rc-emoji  {{ font-size: clamp(2.5rem,8vw,3.5rem); line-height:1; margin-bottom:6px; }}
+.rc-name   {{
     font-family: 'Baloo 2', cursive;
-    font-size: 3rem;
+    color: #ffd700;
+    font-size: clamp(1.3rem, 5.5vw, 1.7rem);
     font-weight: 900;
-    line-height: 1.1;
-    text-shadow: 0 0 30px rgba(255,215,0,0.8);
+    word-break: break-word;
 }}
-.rc-taka {{ color: #ffd700; font-size: 1.4rem; vertical-align: super; }}
-.rc-close {{
-    margin-top: 1.4rem;
+.rc-label  {{ color: rgba(255,255,255,0.5); font-size: 0.88rem; margin: 6px 0 2px; }}
+.rc-amount {{
+    font-family: 'Baloo 2', cursive;
+    color: #fff;
+    font-size: clamp(2.4rem, 10vw, 3.4rem);
+    font-weight: 900;
+    line-height: 1;
+    text-shadow: 0 0 28px rgba(255,215,0,0.7);
+}}
+.rc-taka   {{ color: #ffd700; font-size: 0.5em; vertical-align: super; }}
+.rc-eid    {{ color: rgba(255,255,255,0.6); font-size:0.9rem; margin-top:6px; }}
+.rc-close  {{
+    margin-top: 16px;
     background: linear-gradient(135deg, #ff6b35, #ffd700);
     color: #1a0333;
     border: none;
     border-radius: 50px;
-    padding: 11px 36px;
+    padding: 12px 36px;
     font-family: 'Baloo 2', cursive;
     font-size: 1.05rem;
     font-weight: 900;
     cursor: pointer;
-    letter-spacing: 1px;
-    box-shadow: 0 4px 20px rgba(255,107,53,0.5);
+    box-shadow: 0 4px 18px rgba(255,107,53,0.5);
+    -webkit-tap-highlight-color: transparent;
 }}
+.rc-close:active {{ transform: scale(0.95); }}
 
+/* ── Confetti ── */
 .confetti-layer {{
     position: fixed;
     inset: 0;
@@ -401,40 +399,184 @@ canvas {{
     z-index: 199;
     overflow: hidden;
 }}
+
+/* ── History section ── */
+.section-card {{
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    border-radius: 18px;
+    overflow: hidden;
+}}
+.section-header {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    background: rgba(255,255,255,0.03);
+}}
+.section-header span {{
+    font-family: 'Baloo 2', cursive;
+    font-size: 1rem;
+    font-weight: 800;
+    color: rgba(255,255,255,0.85);
+}}
+.section-chevron {{ color: rgba(255,255,255,0.5); transition: transform 0.25s; font-size:1rem; }}
+.section-body {{
+    display: none;
+    padding: 0 14px 14px;
+    max-height: 280px;
+    overflow-y: auto;
+}}
+.section-body.open {{ display: block; }}
+
+.hist-item {{
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 0.88rem;
+    color: rgba(255,255,255,0.75);
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    align-items: center;
+}}
+.hist-item:last-child {{ border-bottom: none; }}
+.hist-name  {{ color: #fff; font-weight: 800; }}
+.hist-amt   {{ color: #ffd700; font-weight: 800; }}
+.hist-time  {{ color: rgba(255,255,255,0.35); font-size:0.76rem; margin-left: auto; }}
+.hist-empty {{ color: rgba(255,255,255,0.4); text-align:center; padding: 16px 0; font-size:0.9rem; }}
+
+/* ── Admin section ── */
+.admin-body {{
+    display: none;
+    padding: 14px;
+    display: none;
+    flex-direction: column;
+    gap: 10px;
+}}
+.admin-body.open {{ display: flex; }}
+.admin-input {{
+    background: rgba(255,255,255,0.08);
+    border: 1.5px solid rgba(255,255,255,0.2);
+    border-radius: 10px;
+    color: #fff;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.95rem;
+    padding: 9px 14px;
+    outline: none;
+    width: 100%;
+}}
+.admin-input:focus {{ border-color: #ffd700; }}
+.admin-btn {{
+    background: rgba(255,80,80,0.2);
+    border: 1.5px solid rgba(255,80,80,0.4);
+    border-radius: 10px;
+    color: #ff9090;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 800;
+    padding: 9px 16px;
+    cursor: pointer;
+    text-align: center;
+    -webkit-tap-highlight-color: transparent;
+}}
+.admin-msg {{ font-size: 0.85rem; color: rgba(255,255,255,0.5); }}
 </style>
 </head>
 <body>
-<div class="scene">
-  <div class="wheel-wrap">
-    <canvas id="wc"></canvas>
-    <div class="pointer">
-      <div class="pointer-arrow"></div>
-      <div class="pointer-knob"></div>
+
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+   <h1>🌙 ইয়াস ভাই এর সালামি হুইল 🎉</h1>
+    <p>Pick your Eid Salami!! 🤩 &nbsp;—&nbsp; Each person spins once!</p>
+  </div>
+
+  <!-- Name card -->
+  <div class="name-card" id="nameCard">
+    <label>✍️ Enter your name</label>
+    <div class="name-row">
+      <input class="name-input" id="nameInput" type="text"
+             placeholder="Your name here…"
+             autocomplete="off" autocorrect="off" spellcheck="false"
+             maxlength="40"
+             onkeydown="if(event.key==='Enter') confirmName()">
+      <button class="confirm-btn" onclick="confirmName()">✔ OK</button>
+    </div>
+    <div id="statusChip" style="display:none"></div>
+  </div>
+
+  <!-- Wheel -->
+  <div class="wheel-area">
+    <div class="wheel-wrap">
+      <canvas id="wc"></canvas>
+      <div class="pointer">
+        <div class="ptr-arrow"></div>
+        <div class="ptr-ball"></div>
+      </div>
+    </div>
+    <button class="spin-btn" id="spinBtn" onclick="startSpin()" disabled>🎰 &nbsp;SPIN!</button>
+  </div>
+
+  <!-- History -->
+  <div class="section-card">
+    <div class="section-header" onclick="toggleSection('hist')">
+      <span>📋 Spin History (<span id="histCount">0</span>)</span>
+      <span class="section-chevron" id="histChevron">▼</span>
+    </div>
+    <div class="section-body" id="histBody"></div>
+  </div>
+
+  <!-- Admin -->
+  <div class="section-card">
+    <div class="section-header" onclick="toggleSection('admin')">
+      <span>🔐 Admin Panel</span>
+      <span class="section-chevron" id="adminChevron">▼</span>
+    </div>
+    <div class="admin-body" id="adminBody">
+      <input class="admin-input" id="adminPass" type="password" placeholder="Admin password…"
+             onkeydown="if(event.key==='Enter') checkAdmin()">
+      <button class="admin-btn" onclick="checkAdmin()">Unlock</button>
+      <div id="adminMsg" class="admin-msg"></div>
+      <div id="adminControls" style="display:none; flex-direction:column; gap:8px;">
+        <button class="admin-btn" style="color:#ff6b6b;border-color:rgba(255,80,80,0.5)"
+                onclick="clearRecords()">🗑️ Clear All Records</button>
+        <a id="downloadLink" class="admin-btn"
+           style="color:#6dffad;border-color:rgba(46,204,113,0.4);text-decoration:none;display:block;text-align:center">
+          📥 Download Records
+        </a>
+      </div>
     </div>
   </div>
-  <button class="spin-btn" id="spinBtn" onclick="startSpin()">🎰 &nbsp;SPIN!</button>
-</div>
 
+</div><!-- /app -->
+
+<!-- Result overlay -->
 <div class="confetti-layer" id="confettiLayer"></div>
-
 <div class="overlay" id="overlay">
   <div class="result-card">
     <div class="rc-emoji">🎊</div>
-    <div class="rc-name" id="rcName"></div>
+    <div class="rc-name"  id="rcName"></div>
     <div class="rc-label">gets</div>
-    <div class="rc-amount"><span class="rc-taka"></span><span id="rcAmount"></span> <span style="font-size:1.4rem;color:#ffd700">Taka</span></div>
-    <div class="rc-label" style="margin-top:.4rem">Eid Salami! 💚</div>
+    <div class="rc-amount"><span id="rcAmt"></span><span class="rc-taka"> Taka</span></div>
+    <div class="rc-eid">Eid Salami! 💚</div>
     <button class="rc-close" onclick="closeResult()">Awesome! 🎉</button>
   </div>
 </div>
 
 <script>
-/* ── data ─────────────────────────────────────────────────── */
-const spunNames   = {spun_names_json};
-const currentName = `{name_input.strip().replace('`','').replace(chr(10),'').replace(chr(13),'')}`.trim();
-const alreadySpun = spunNames.includes(currentName.toLowerCase());
+/* ═══════════════════════════════════════════════════════
+   DATA
+═══════════════════════════════════════════════════════ */
+const SPUN_NAMES   = {spun_json};
+const ALL_RECORDS  = {records_json};
+const ADMIN_PASS   = "eid2025";
 
-const segments = [
+const SEGMENTS = [
   "1","9.75","7.50","9.50","4.75",
   "5","2.50","7","1.50","1.25",
   "5.25","6.75","4.25","6","2.25",
@@ -444,8 +586,12 @@ const segments = [
   "8","2.75","8.75","1.75","4.50",
   "6.25","8.50","500"
 ];
-
-const FORBIDDEN = segments.length - 1;   // 500-Taka index never lands
+const FORBIDDEN = SEGMENTS.length - 1;
+const FORBIDDEN_SET = new Set([
+  FORBIDDEN,
+  (FORBIDDEN - 1 + SEGMENTS.length) % SEGMENTS.length,
+  (FORBIDDEN + 1) % SEGMENTS.length
+]);
 
 const PALETTE = [
   "#e74c3c","#2ecc71","#3498db","#f39c12",
@@ -460,233 +606,217 @@ const PALETTE = [
   "#9b59b6","#1abc9c","#e67e22"
 ];
 
-/* ── canvas setup ─────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════ */
+let confirmedName = "";
+let alreadySpun   = false;
+let spinning      = false;
+
+/* ═══════════════════════════════════════════════════════
+   CANVAS
+═══════════════════════════════════════════════════════ */
 const canvas = document.getElementById('wc');
 const ctx    = canvas.getContext('2d');
-const SIZE   = 560;
-canvas.width  = SIZE;
-canvas.height = SIZE;
+const SZ     = 560;
+canvas.width = canvas.height = SZ;
+const CX = CY = SZ / 2;
+const R  = SZ / 2 - 6;
+const arc = (2 * Math.PI) / SEGMENTS.length;
+let   wheelAngle = 0;
 
-const CX  = SIZE / 2;
-const CY  = SIZE / 2;
-const R   = SIZE / 2 - 6;
-const arc = (2 * Math.PI) / segments.length;
-
-let angle = 0, spinning = false;
-
-/* ── draw ─────────────────────────────────────────────────── */
 function draw(a) {{
-    ctx.clearRect(0, 0, SIZE, SIZE);
+    ctx.clearRect(0, 0, SZ, SZ);
 
-    /* outer dark border */
-    ctx.beginPath();
-    ctx.arc(CX, CY, R + 5, 0, 2*Math.PI);
-    ctx.fillStyle = '#1a0333';
-    ctx.fill();
+    // dark border ring
+    ctx.beginPath(); ctx.arc(CX, CY, R+5, 0, 2*Math.PI);
+    ctx.fillStyle = '#150028'; ctx.fill();
 
-    for (let i = 0; i < segments.length; i++) {{
-        const s = a + i * arc;
-        const e = s + arc;
+    for (let i = 0; i < SEGMENTS.length; i++) {{
+        const s = a + i * arc, e = s + arc;
+        ctx.beginPath(); ctx.moveTo(CX,CY); ctx.arc(CX,CY,R,s,e); ctx.closePath();
+        ctx.fillStyle = PALETTE[i % PALETTE.length]; ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 2; ctx.stroke();
 
-        /* segment */
-        ctx.beginPath();
-        ctx.moveTo(CX, CY);
-        ctx.arc(CX, CY, R, s, e);
-        ctx.closePath();
-        ctx.fillStyle = PALETTE[i % PALETTE.length];
-        ctx.fill();
-
-        /* white divider line */
-        ctx.beginPath();
-        ctx.moveTo(CX, CY);
-        ctx.arc(CX, CY, R, s, e);
-        ctx.closePath();
-        ctx.strokeStyle = 'rgba(255,255,255,0.45)';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        /* text */
         ctx.save();
-        ctx.translate(CX, CY);
-        ctx.rotate(s + arc / 2);
-        ctx.textAlign  = 'right';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(0,0,0,0.9)';
-        ctx.shadowBlur  = 5;
-
-        const is500 = segments[i] === "500";
-        if (is500) {{
+        ctx.translate(CX, CY); ctx.rotate(s + arc/2);
+        ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+        ctx.shadowColor = 'rgba(0,0,0,0.95)'; ctx.shadowBlur = 5;
+        if (SEGMENTS[i] === "500") {{
             ctx.fillStyle = '#ffe066';
-            ctx.font = `900 15px 'Nunito',sans-serif`;
-            ctx.fillText('500 Taka 💛', R - 12, 0);
+            ctx.font = "900 14px 'Nunito',sans-serif";
+            ctx.fillText('500 Taka 💛', R - 10, 0);
         }} else {{
-            ctx.fillStyle = '#ffffff';
-            ctx.font = `800 14px 'Nunito',sans-serif`;
-            ctx.fillText(segments[i] + ' Taka', R - 12, 0);
+            ctx.fillStyle = '#fff';
+            ctx.font = "800 13px 'Nunito',sans-serif";
+            ctx.fillText(SEGMENTS[i] + ' Taka', R - 10, 0);
         }}
         ctx.restore();
     }}
 
-    /* shiny bevel ring */
-    const bevel = ctx.createRadialGradient(CX, CY, R-18, CX, CY, R+2);
-    bevel.addColorStop(0,'transparent');
-    bevel.addColorStop(0.6,'rgba(255,255,255,0.08)');
-    bevel.addColorStop(1,'rgba(255,255,255,0.22)');
-    ctx.beginPath();
-    ctx.arc(CX, CY, R, 0, 2*Math.PI);
-    ctx.strokeStyle = bevel;
-    ctx.lineWidth = 18;
-    ctx.stroke();
+    // bevel
+    const bv = ctx.createRadialGradient(CX,CY,R-20,CX,CY,R+2);
+    bv.addColorStop(0,'transparent');
+    bv.addColorStop(0.7,'rgba(255,255,255,0.07)');
+    bv.addColorStop(1,'rgba(255,255,255,0.2)');
+    ctx.beginPath(); ctx.arc(CX,CY,R,0,2*Math.PI);
+    ctx.strokeStyle = bv; ctx.lineWidth = 18; ctx.stroke();
 
-    /* gold border line */
-    ctx.beginPath();
-    ctx.arc(CX, CY, R, 0, 2*Math.PI);
-    ctx.strokeStyle = 'rgba(255,215,0,0.6)';
-    ctx.lineWidth = 3;
-    ctx.stroke();
+    // gold ring
+    ctx.beginPath(); ctx.arc(CX,CY,R,0,2*Math.PI);
+    ctx.strokeStyle = 'rgba(255,215,0,0.55)'; ctx.lineWidth = 3; ctx.stroke();
 
-    /* center hub */
-    const hub = ctx.createRadialGradient(CX, CY, 0, CX, CY, 52);
-    hub.addColorStop(0,'#fff9c4');
-    hub.addColorStop(0.4,'#ffd700');
-    hub.addColorStop(1,'#e65c00');
-    ctx.beginPath();
-    ctx.arc(CX, CY, 52, 0, 2*Math.PI);
-    ctx.fillStyle = hub;
-    ctx.fill();
-    ctx.strokeStyle = 'white';
-    ctx.lineWidth = 4;
-    ctx.stroke();
+    // hub
+    const hub = ctx.createRadialGradient(CX,CY,0,CX,CY,50);
+    hub.addColorStop(0,'#fff9c4'); hub.addColorStop(0.4,'#ffd700'); hub.addColorStop(1,'#e65c00');
+    ctx.beginPath(); ctx.arc(CX,CY,50,0,2*Math.PI);
+    ctx.fillStyle = hub; ctx.fill();
+    ctx.strokeStyle = 'white'; ctx.lineWidth = 4; ctx.stroke();
 
-    /* center emoji */
-    ctx.font = '38px serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowBlur = 0;
-    ctx.fillText('🎡', CX, CY);
+    ctx.font = '36px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowBlur = 0; ctx.fillText('🎡', CX, CY);
+}}
+draw(wheelAngle);
+
+/* ═══════════════════════════════════════════════════════
+   NAME CONFIRM
+═══════════════════════════════════════════════════════ */
+function confirmName() {{
+    const raw = document.getElementById('nameInput').value.trim();
+    if (!raw) {{ shakeInput(); return; }}
+
+    confirmedName = raw;
+    alreadySpun   = SPUN_NAMES.includes(raw.toLowerCase());
+
+    const chip = document.getElementById('statusChip');
+    chip.style.display = 'flex';
+    chip.style.alignItems = 'center';
+    chip.style.gap = '8px';
+
+    if (alreadySpun) {{
+        chip.className = 'status-chip chip-err';
+        chip.innerHTML = '<div class="chip-dot"></div>❌ ' + raw + ' has already spun! One chance only.';
+        document.getElementById('spinBtn').disabled = true;
+    }} else {{
+        chip.className = 'status-chip chip-ok';
+        chip.innerHTML = '<div class="chip-dot"></div>✅ Welcome, <b>' + raw + '</b>! Press SPIN!';
+        document.getElementById('spinBtn').disabled = false;
+        document.getElementById('nameInput').blur();
+    }}
 }}
 
-draw(angle);
+function shakeInput() {{
+    const inp = document.getElementById('nameInput');
+    inp.style.animation = 'none';
+    inp.style.borderColor = '#ff5050';
+    setTimeout(() => {{ inp.style.borderColor = ''; }}, 800);
+}}
 
-/* ── spin logic ───────────────────────────────────────────── */
-function easeOut(t) {{ return 1 - Math.pow(1 - t, 4); }}
+/* ═══════════════════════════════════════════════════════
+   SPIN
+═══════════════════════════════════════════════════════ */
+function easeOut(t) {{ return 1 - Math.pow(1-t, 4); }}
 
-// Pointer is at 3-o-clock = canvas angle 0.
-// Segment i occupies wheel-space angles [i*arc, (i+1)*arc].
-// When wheel has rotated by `a`, segment i sits at canvas angle (a + i*arc).
-// Segment under pointer: (-a mod 2PI) / arc  => floor gives index.
 function getSegmentAtPointer(a) {{
-    const norm = ((-a) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
-    return Math.floor(norm / arc) % segments.length;
+    const norm = ((-a) % (2*Math.PI) + 2*Math.PI) % (2*Math.PI);
+    return Math.floor(norm / arc) % SEGMENTS.length;
 }}
 
 function startSpin() {{
-    if (spinning) return;
-    if (!currentName) {{ alert('Please enter your name first! ✍️'); return; }}
-    if (alreadySpun)  {{ alert('You already spun! One chance per person. 🚫'); return; }}
+    if (spinning || !confirmedName || alreadySpun) return;
 
     spinning = true;
     document.getElementById('spinBtn').disabled = true;
+    document.getElementById('nameInput').disabled = true;
+    document.querySelector('.confirm-btn').disabled = true;
 
-    // ── Pick winner — NEVER 500 Taka ──────────────────────────────────────
-    // Also exclude the segments immediately adjacent to FORBIDDEN (neighbours)
-    // so the pointer can never "slip" into 500 from a nearby segment.
-    const forbidden_neighbours = new Set([
-        FORBIDDEN,
-        (FORBIDDEN - 1 + segments.length) % segments.length,
-        (FORBIDDEN + 1) % segments.length
-    ]);
+    // pick winner — never 500 or its neighbours
     let winner;
-    do {{
-        winner = Math.floor(Math.random() * segments.length);
-    }} while (forbidden_neighbours.has(winner));
+    do {{ winner = Math.floor(Math.random() * SEGMENTS.length); }}
+    while (FORBIDDEN_SET.has(winner));
 
-    // ── Target angle: land dead-centre of winner segment ──────────────────
-    // Centre of segment `winner` in wheel-space = winner*arc + arc/2
-    // For canvas-angle 0: finalAngle = -(winner*arc + arc/2)
     const targetAngle    = -(winner * arc + arc / 2);
     const extraRotations = 10 + Math.random() * 5;
-    const delta          = ((targetAngle - angle) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+    const delta          = ((targetAngle - wheelAngle) % (2*Math.PI) + 2*Math.PI) % (2*Math.PI);
     const totalAngle     = extraRotations * 2 * Math.PI + delta;
 
     const duration  = 5500 + Math.random() * 1500;
-    const startA    = angle;
+    const startA    = wheelAngle;
     const startTime = performance.now();
 
     function frame(now) {{
         const p = Math.min((now - startTime) / duration, 1);
-        angle = startA + totalAngle * easeOut(p);
-        draw(angle);
+        wheelAngle = startA + totalAngle * easeOut(p);
+        draw(wheelAngle);
         if (p < 1) {{
             requestAnimationFrame(frame);
         }} else {{
-            // Ground-truth: read which segment is actually under pointer
-            let actualWinner = getSegmentAtPointer(angle);
-
-            // IRON-CLAD: if 500 somehow ended up under pointer, override it
-            if (forbidden_neighbours.has(actualWinner)) {{
-                actualWinner = winner;          // use the pre-planned safe winner
-                angle = targetAngle;            // snap wheel visually to correct pos
-                draw(angle);
+            let actual = getSegmentAtPointer(wheelAngle);
+            if (FORBIDDEN_SET.has(actual)) {{
+                actual = winner;
+                wheelAngle = targetAngle;
+                draw(wheelAngle);
             }}
-
             spinning = false;
-            showResult(actualWinner);
+            showResult(actual);
         }}
     }}
     requestAnimationFrame(frame);
 }}
 
-/* ── result popup ─────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════
+   RESULT
+═══════════════════════════════════════════════════════ */
 function showResult(idx) {{
-    const amt = segments[idx];
-    document.getElementById('rcName').textContent   = currentName + '!';
-    document.getElementById('rcAmount').textContent = amt;
+    const amt = SEGMENTS[idx];
+    document.getElementById('rcName').textContent = confirmedName + '!';
+    document.getElementById('rcAmt').textContent  = amt;
     document.getElementById('overlay').classList.add('show');
-    confetti();
+    launchConfetti();
 
+    // Save to Streamlit backend via URL
     const url = new URL(window.parent.location.href);
-    url.searchParams.set('result_name',   currentName);
-    url.searchParams.set('result_amount', amt);
+    url.searchParams.set('save_name',   confirmedName);
+    url.searchParams.set('save_amount', amt);
     window.parent.history.replaceState(null, '', url.toString());
-    setTimeout(() => {{ window.parent.location.href = url.toString(); }}, 2800);
+    setTimeout(() => {{ window.parent.location.href = url.toString(); }}, 3000);
 }}
 
 function closeResult() {{
     document.getElementById('overlay').classList.remove('show');
     document.getElementById('confettiLayer').innerHTML = '';
+    // Reset UI for next person — clear the name field fully
+    document.getElementById('nameInput').value    = '';
+    document.getElementById('nameInput').disabled = false;
+    document.querySelector('.confirm-btn').disabled = false;
+    document.getElementById('statusChip').style.display = 'none';
+    document.getElementById('spinBtn').disabled   = true;
+    confirmedName = '';
+    alreadySpun   = false;
+    // Add this person to local spun list so UI reflects immediately
+    SPUN_NAMES.push(confirmedName.toLowerCase());
 }}
 
-/* ── confetti ─────────────────────────────────────────────── */
-function confetti() {{
-    const layer  = document.getElementById('confettiLayer');
+/* ═══════════════════════════════════════════════════════
+   CONFETTI
+═══════════════════════════════════════════════════════ */
+function launchConfetti() {{
+    const layer = document.getElementById('confettiLayer');
     layer.innerHTML = '';
-    const cols   = ['#ffd700','#ff6b35','#2ecc71','#3498db','#e74c3c','#9b59b6','#1abc9c'];
-    const style  = document.createElement('style');
-    style.textContent = `@keyframes cf {{ to {{ transform: translateY(105vh) rotate(900deg); opacity:0; }} }}`;
+    const cols  = ['#ffd700','#ff6b35','#2ecc71','#3498db','#e74c3c','#9b59b6','#1abc9c'];
+    const style = document.createElement('style');
+    style.textContent = `@keyframes cf {{ to {{ transform:translateY(110vh) rotate(900deg); opacity:0; }} }}`;
     document.head.appendChild(style);
-    for (let i = 0; i < 120; i++) {{
+    for (let i = 0; i < 130; i++) {{
         const d = document.createElement('div');
-        const s = 7 + Math.random() * 9;
-        d.style.cssText = `
-            position:absolute; width:${{s}}px; height:${{s}}px;
+        const s = 6 + Math.random() * 10;
+        d.style.cssText = `position:absolute;width:${{s}}px;height:${{s}}px;
             background:${{cols[i%cols.length]}};
-            left:${{Math.random()*100}}%;
-            top:-20px;
+            left:${{Math.random()*100}}%;top:-20px;
             border-radius:${{Math.random()>.5?'50%':'3px'}};
-            animation: cf ${{2.5+Math.random()*3}}s linear ${{Math.random()*.6}}s forwards;
-        `;
+            animation:cf ${{2.5+Math.random()*3}}s linear ${{Math.random()*.7}}s forwards;`;
         layer.appendChild(d);
     }}
 }}
 
-/* disable button if no name / already spun */
-if (!currentName || alreadySpun) {{
-    document.getElementById('spinBtn').disabled = true;
-}}
-</script>
-</body>
-</html>"""
-
-components.html(wheel_html, height=680, scrolling=False)
 
