@@ -152,13 +152,8 @@ body {{
     font-weight: 700;
     letter-spacing: 0.5px;
 }}
-.name-row {{
-    display: flex;
-    gap: 8px;
-    align-items: stretch;
-}}
 .name-input {{
-    flex: 1;
+    width: 100%;
     background: rgba(255,255,255,0.1);
     border: 2px solid rgba(255,215,0,0.5);
     border-radius: 50px;
@@ -177,22 +172,6 @@ body {{
     background: rgba(255,255,255,0.15);
     box-shadow: 0 0 18px rgba(255,215,0,0.35);
 }}
-.confirm-btn {{
-    background: linear-gradient(135deg, #ffd700, #ff8c00);
-    color: #1a0333;
-    border: none;
-    border-radius: 50px;
-    font-family: 'Baloo 2', cursive;
-    font-size: 0.95rem;
-    font-weight: 900;
-    padding: 12px 20px;
-    cursor: pointer;
-    white-space: nowrap;
-    box-shadow: 0 4px 16px rgba(255,140,0,0.45);
-    transition: transform 0.15s, box-shadow 0.15s;
-    -webkit-tap-highlight-color: transparent;
-}}
-.confirm-btn:active {{ transform: scale(0.95); }}
 
 /* Status chips */
 .status-chip {{
@@ -204,11 +183,6 @@ body {{
     font-size: 0.9rem;
     font-weight: 800;
 }}
-.chip-ok  {{
-    background: rgba(46,204,113,0.15);
-    border: 1.5px solid rgba(46,204,113,0.5);
-    color: #6dffad;
-}}
 .chip-err {{
     background: rgba(255,80,80,0.15);
     border: 1.5px solid rgba(255,80,80,0.5);
@@ -219,7 +193,6 @@ body {{
     border-radius: 50%;
     flex-shrink: 0;
 }}
-.chip-ok  .chip-dot {{ background: #2ecc71; box-shadow: 0 0 6px #2ecc71; }}
 .chip-err .chip-dot {{ background: #ff5050; box-shadow: 0 0 6px #ff5050; }}
 
 /* ── Wheel area ── */
@@ -414,21 +387,18 @@ canvas {{
 
   <!-- Header -->
   <div class="header">
-      <h1>🌙 ইয়াস ভাইয়ের সালামি হুইল 🎉</h1>
+      <h1>🌙 ইয়াস ভাইয়ের সালামি হুইল 🎉</h1>
     <p>Pick your Eid Salami!! 🤩 &nbsp;—&nbsp; Each person spins once!</p>
   </div>
 
   <!-- Name card -->
   <div class="name-card" id="nameCard">
-    <label>✍️ Enter your name</label>
-    <div class="name-row">
-      <input class="name-input" id="nameInput" type="text"
-             placeholder="Your name here…"
-             autocomplete="off" autocorrect="off" spellcheck="false"
-             maxlength="40"
-             onkeydown="if(event.key==='Enter') confirmName()">
-      <button class="confirm-btn" onclick="confirmName()">✔ OK</button>
-    </div>
+    <label>✍️ Enter your name & press SPIN!</label>
+    <input class="name-input" id="nameInput" type="text"
+           placeholder="Your name here…"
+           autocomplete="off" autocorrect="off" spellcheck="false"
+           maxlength="40"
+           oninput="onNameInput()">
     <div id="statusChip" style="display:none"></div>
   </div>
 
@@ -503,9 +473,7 @@ const PALETTE = [
 /* ═══════════════════════════════════════════════════════
    STATE
 ═══════════════════════════════════════════════════════ */
-let confirmedName = "";
-let alreadySpun   = false;
-let spinning      = false;
+let spinning = false;
 
 /* ═══════════════════════════════════════════════════════
    CANVAS
@@ -573,37 +541,32 @@ function draw(a) {{
 draw(wheelAngle);
 
 /* ═══════════════════════════════════════════════════════
-   NAME CONFIRM
+   NAME INPUT — live check, enable/disable SPIN
 ═══════════════════════════════════════════════════════ */
-function confirmName() {{
-    const raw = document.getElementById('nameInput').value.trim();
-    if (!raw) {{ shakeInput(); return; }}
-
-    confirmedName = raw;
-    alreadySpun   = SPUN_NAMES.includes(raw.toLowerCase());
-
+function onNameInput() {{
+    const raw  = document.getElementById('nameInput').value.trim();
     const chip = document.getElementById('statusChip');
-    chip.style.display = 'flex';
-    chip.style.alignItems = 'center';
-    chip.style.gap = '8px';
+    const btn  = document.getElementById('spinBtn');
+
+    if (!raw) {{
+        chip.style.display = 'none';
+        btn.disabled = true;
+        return;
+    }}
+
+    const alreadySpun = SPUN_NAMES.includes(raw.toLowerCase());
 
     if (alreadySpun) {{
+        chip.style.display = 'flex';
+        chip.style.alignItems = 'center';
+        chip.style.gap = '8px';
         chip.className = 'status-chip chip-err';
         chip.innerHTML = '<div class="chip-dot"></div>❌ ' + raw + ' has already spun! One chance only.';
-        document.getElementById('spinBtn').disabled = true;
+        btn.disabled = true;
     }} else {{
-        chip.className = 'status-chip chip-ok';
-        chip.innerHTML = '<div class="chip-dot"></div>✅ Welcome, <b>' + raw + '</b>! Press SPIN!';
-        document.getElementById('spinBtn').disabled = false;
-        document.getElementById('nameInput').blur();
+        chip.style.display = 'none';
+        btn.disabled = false;
     }}
-}}
-
-function shakeInput() {{
-    const inp = document.getElementById('nameInput');
-    inp.style.animation = 'none';
-    inp.style.borderColor = '#ff5050';
-    setTimeout(() => {{ inp.style.borderColor = ''; }}, 800);
 }}
 
 /* ═══════════════════════════════════════════════════════
@@ -616,14 +579,12 @@ function getAudioCtx() {{
     if (!audioCtx) {{
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }}
-    // Always resume — iframe blocks autoplay until user gesture
     if (audioCtx.state === 'suspended') {{
         audioCtx.resume();
     }}
     return audioCtx;
 }}
 
-// Single tick click — works in iframe after user gesture (button click)
 function playTick(volume) {{
     try {{
         const ctx = getAudioCtx();
@@ -631,7 +592,6 @@ function playTick(volume) {{
         const buf  = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.025), ctx.sampleRate);
         const data = buf.getChannelData(0);
         for (let i = 0; i < data.length; i++) {{
-            // Sharp white-noise burst that decays fast = tick sound
             data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 8);
         }}
         const src  = ctx.createBufferSource();
@@ -644,7 +604,6 @@ function playTick(volume) {{
     }} catch(e) {{}}
 }}
 
-// Schedule ticks that mirror wheel speed (fast→slow)
 function startTickSound(duration) {{
     stopTickSound();
     const startTime = performance.now();
@@ -654,10 +613,9 @@ function startTickSound(duration) {{
         const progress = Math.min(elapsed / duration, 1);
         if (progress >= 1) return;
 
-        // Tick interval: 40ms at start → 400ms at end (matches easeOut deceleration)
-        const eased       = 1 - Math.pow(1 - progress, 4); // same easing as wheel
+        const eased       = 1 - Math.pow(1 - progress, 4);
         const intervalMs  = 40 + eased * 360;
-        const volume      = 0.9 - eased * 0.5;             // louder at start
+        const volume      = 0.9 - eased * 0.5;
 
         playTick(volume);
         tickTimeout = setTimeout(scheduleTick, intervalMs);
@@ -670,7 +628,6 @@ function stopTickSound() {{
     if (tickTimeout) {{ clearTimeout(tickTimeout); tickTimeout = null; }}
 }}
 
-// Result sound — play faah.mp4
 function playResultSound() {{
     try {{
         const audio = document.getElementById('resultAudio');
@@ -693,17 +650,18 @@ function getSegmentAtPointer(a) {{
 }}
 
 function startSpin() {{
-    if (spinning || !confirmedName || alreadySpun) return;
+    const raw = document.getElementById('nameInput').value.trim();
+    if (spinning || !raw) return;
 
-    // 🔊 Resume AudioContext on user gesture (required by browsers)
+    // Check again at spin time (in case state drifted)
+    if (SPUN_NAMES.includes(raw.toLowerCase())) return;
+
     getAudioCtx();
 
     spinning = true;
     document.getElementById('spinBtn').disabled = true;
     document.getElementById('nameInput').disabled = true;
-    document.querySelector('.confirm-btn').disabled = true;
 
-    // pick winner — never 500 or its neighbours
     let winner;
     do {{ winner = Math.floor(Math.random() * SEGMENTS.length); }}
     while (FORBIDDEN_SET.has(winner));
@@ -717,7 +675,6 @@ function startSpin() {{
     const startA    = wheelAngle;
     const startTime = performance.now();
 
-    // 🔊 Start tick sound
     startTickSound(duration);
 
     function frame(now) {{
@@ -735,7 +692,7 @@ function startSpin() {{
             }}
             stopTickSound();
             spinning = false;
-            showResult(actual);
+            showResult(actual, raw);
         }}
     }}
     requestAnimationFrame(frame);
@@ -744,18 +701,20 @@ function startSpin() {{
 /* ═══════════════════════════════════════════════════════
    RESULT
 ═══════════════════════════════════════════════════════ */
-function showResult(idx) {{
+function showResult(idx, name) {{
     const amt = SEGMENTS[idx];
-    document.getElementById('rcName').textContent = confirmedName + '!';
+    document.getElementById('rcName').textContent = name + '!';
     document.getElementById('rcAmt').textContent  = amt;
     document.getElementById('overlay').classList.add('show');
     launchConfetti();
-    // 🔊 Play result sound
     playResultSound();
+
+    // Add to local list immediately
+    SPUN_NAMES.push(name.toLowerCase());
 
     // Save to Streamlit backend via URL
     const url = new URL(window.parent.location.href);
-    url.searchParams.set('save_name',   confirmedName);
+    url.searchParams.set('save_name',   name);
     url.searchParams.set('save_amount', amt);
     window.parent.history.replaceState(null, '', url.toString());
     setTimeout(() => {{ window.parent.location.href = url.toString(); }}, 3000);
@@ -764,16 +723,11 @@ function showResult(idx) {{
 function closeResult() {{
     document.getElementById('overlay').classList.remove('show');
     document.getElementById('confettiLayer').innerHTML = '';
-    // Reset UI for next person — clear the name field fully
+    // Reset for next person
     document.getElementById('nameInput').value    = '';
     document.getElementById('nameInput').disabled = false;
-    document.querySelector('.confirm-btn').disabled = false;
     document.getElementById('statusChip').style.display = 'none';
     document.getElementById('spinBtn').disabled   = true;
-    confirmedName = '';
-    alreadySpun   = false;
-    // Add this person to local spun list so UI reflects immediately
-    SPUN_NAMES.push(confirmedName.toLowerCase());
 }}
 
 /* ═══════════════════════════════════════════════════════
